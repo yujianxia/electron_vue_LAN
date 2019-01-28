@@ -9,7 +9,7 @@
     ~ 结束IP：
     <el-input size="mini" style="width:80px;" maxlength='3' placeholder="结束IP" v-model="IP_end">
     </el-input>
-    <el-button size="mini" type="info" @click="searchFun">查询</el-button>
+    <el-button size="mini" type="info" @click="searchFun" :loading="loading">查询</el-button>
     <el-button size="mini" type="info" @click="resetFun('all','cx')">全部程序重启</el-button>
     <el-button size="mini" type="info" @click="resetFun('','cx')">选中程序重启</el-button>
     <!-- 重启设备 -->
@@ -40,18 +40,34 @@
       <el-button size="mini" type="info" @click="configPool()">配置选中</el-button>
     </div>
 
+    异常配置： 温度： <input type="text" style="width:60px;margin-right:10px;outline: none;" v-model="temperature_err"> 5s平均值：<input type="text" style="width:60px;margin-right:40px;outline: none;" v-model="force_err"> 异常筛选：
+
+    <div class='container'>
+      <div class='container_item'>
+        <p v-for='(item,index) in err_select' :key="index">
+          <input v-model='item.status' :id='"demo"+index' type="checkbox">
+          <label :for='"demo"+index' v-text='item.val'></label>
+        </p>
+      </div>
+    </div>
+
+    <el-button size="mini" type="info" @click="filtrate">筛选</el-button>
+
     <!-- 表格数据 -->
-    <el-table empty-text="" ref="multipleTable" class="tableClass" border :data="tableData3" tooltip-effect="dark" height='calc(100vh - 140px)' style="width: 100%;" @selection-change="handleSelectionChange">
+    <el-table empty-text="" ref="multipleTable" class="tableClass" border :data="tableData3" tooltip-effect="dark" height='calc(100vh - 180px)' style="width: 100%;margin-top:6px;" @selection-change="handleSelectionChange">
       <el-table-column type="selection" fixed="left" width="55" align='center'>
       </el-table-column>
       <el-table-column label="ip" width="120" align='center'>
         <template slot-scope="scope">{{ scope.row.ip }}</template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="120" align='center'>
+        <template slot-scope="scope">
+          <span :class="[scope.row.status != 'open'?'redColor':'']">{{scope.row.status}}</span>
+        </template>
       </el-table-column>
       <el-table-column prop="result[1].temperature" label="温度" width="180" align='center'>
         <template slot-scope="scope">
-          <span v-for="(item, index) of scope.row.result[1].temperature" :key="index">
+          <span :class="[scope.row.fever?'redColor':'']" v-for="(item, index) of scope.row.result[1].temperature" :key="index">
             {{item}}
             <i v-if="index != scope.row.result[1].temperature.length -1">,</i>
           </span>
@@ -63,6 +79,9 @@
       </el-table-column>
       <!-- 5s 平均值 -->
       <el-table-column prop="result[1].5s" label="5s平均值" width="100" align='center'>
+        <template slot-scope="scope">
+          <span :class="[scope.row.force?'redColor':'']">{{scope.row.result[1]['5s']}}</span>
+        </template>
       </el-table-column>
       <!-- 60s 平均值 -->
       <el-table-column prop="result[1].60s" label="60s平均值" width="100" align='center'>
@@ -100,32 +119,54 @@ export default {
   components: {},
   data() {
     return {
-      IP_head: "192.168.99",
-      IP_start: 168,
-      IP_end: 170,
+      IP_head: "",
+      IP_start: null,
+      IP_end: null,
       default_port: "3080",
       openArr: [],
+      ind: 0,
+      loading: false,
       closeArr: [],
       joinArr: [],
       tableData3: [], //展示数据
       dataArr: [], //重启的数据
       configArr: [], //配置的数据
       multipleSelection: [], //选中的数据
+      tableData1: [], //查询的临时数组
       poolConfig: {
-        poolpasswd0: "1",
-        poolpasswd1: "2",
-        poolpasswd2: "3",
-        poolurl0: "sz.ss.btc.com:1800",
-        poolurl1: "sz.ss.btc.com:443",
-        poolurl2: "sz.ss.btc.com:25",
-        poolusr0: "alvingehua.001",
-        poolusr1: "alvingehua.002",
-        poolusr2: "alvingehua.003",
+        poolpasswd0: "",
+        poolpasswd1: "",
+        poolpasswd2: "",
+        poolurl0: "",
+        poolurl1: "",
+        poolurl2: "",
+        poolusr0: "",
+        poolusr1: "",
+        poolusr2: "",
         pll: 550
-      } //矿机123配置
+      }, //矿机123配置
+      temperature_err: "",
+      force_err: "",
+      err_select: [
+        {
+          status: false,
+          val: "状态"
+        },
+        {
+          status: false,
+          val: "温度"
+        },
+        {
+          status: false,
+          val: "5s算力"
+        }
+      ]
     };
   },
-  mounted() {},
+  mounted() {
+    this.temperature_err = window.localStorage.getItem('temperature_storage')?window.localStorage.getItem('temperature_storage'):'80';
+    this.force_err = window.localStorage.getItem('force_storage')?window.localStorage.getItem('force_storage'):'100';
+  },
   methods: {
     // 浏览器打开外链
     open(link) {
@@ -199,6 +240,10 @@ export default {
     // 获取数据的函数
     getdata(val) {
       let that = this;
+      that.ind++;
+      if (that.ind == that.openArr.length) {
+        that.loading = false;
+      }
       return new Promise((resolve, reject) => {
         that.$http
           .post(`http://${val}:${that.default_port}/ubus`, {
@@ -250,6 +295,10 @@ export default {
     // 搜索函数
     searchFun() {
       let that = this;
+    // 设置本地存储（温度和5s算力）
+      window.localStorage.setItem('temperature_storage',that.temperature_err);
+      window.localStorage.setItem('force_storage',that.force_err);
+      that.ind = 0;
       that.openArr = [];
       that.closeArr = [];
       that.tableData3 = [];
@@ -275,19 +324,47 @@ export default {
         });
         return;
       }
-
       // 发起所有请求
+      that.loading = true;
       this.getrerch();
     },
     async getcync() {
+      let that = this;
+      if (this.openArr.length == 0) {
+        that.loading = false;
+      }
       for (const iterator of this.openArr) {
         await this.getdata(iterator)
           .then(res => {
             // console.log("当前异步完成了，可以进行下次循环", res);
-            res.status = "success";
             res.ip = iterator;
-            this.tableData3.push(res);
-            // console.log("得到最后的数组", this.tableData3);
+            // 判断状态
+            for (const item1 of res.result[1].core) {
+              if (item1 == "open") {
+                res.status = "open";
+              } else {
+                res.status = "close";
+              }
+            }
+            // 判断温度
+            for (const item2 of res.result[1].temperature) {
+              if (parseInt(item2) > parseInt(that.temperature_err)) {
+                // 温度异常
+                res.fever = true;
+              } else {
+                res.fever = false;
+              }
+            }
+            // 判断5s算力
+            if (parseFloat(res.result[1]["5s"]) < parseFloat(that.force_err)) {
+              // 算力异常
+              res.force = true;
+            } else {
+              res.force = false;
+            }
+            that.tableData3.push(res);
+            that.tableData1 = that.tableData3;
+            // console.log("得到最后的数组", that.tableData3);
           })
           .catch(err => {
             console.log(err);
@@ -301,7 +378,6 @@ export default {
         x++;
         if (x == this.IP_end) {
           // 判断是否扫描完成
-          // console.log("that.openArr", that.openArr);
           that.getcync();
         }
         await this.scanPort(this.IP_head + "." + i, this.default_port)
@@ -352,7 +428,7 @@ export default {
             x++;
             if (x == that.configArr.length) {
               // 判断是否所有重启完成
-              console.log("所有配置完成");
+              // console.log("所有配置完成");
               that.$message({
                 showClose: true,
                 type: "info",
@@ -378,7 +454,6 @@ export default {
     },
     // 配置的回调
     configBack(val) {
-      console.log("少时诵诗书所所所所", val);
       let that = this;
       return new Promise((resolve, reject) => {
         that.$http
@@ -478,7 +553,7 @@ export default {
             x++;
             if (x == that.dataArr.length) {
               // 判断是否所有重启完成
-              console.log("所有重启完成");
+              // console.log("所有重启完成");
               that.$message({
                 showClose: true,
                 type: "info",
@@ -501,6 +576,40 @@ export default {
             console.log(err);
           });
       }
+    },
+    filtrate() {
+      if (this.tableData1.length == 0) {
+        return;
+      }
+      var arr1, arr2, arr3;
+      if (this.err_select[0].status) {
+        arr1 = this.tableData1.filter(function(item, index, array) {
+          //元素值，元素的索引，原数组。
+          return item.status === "close";
+        });
+      } else {
+        arr1 = this.tableData1.concat([]);
+      }
+
+      // 温度异常
+      if (this.err_select[1].status) {
+        arr2 = arr1.filter(function(item, index, array) {
+          //元素值，元素的索引，原数组。
+          return item.fever === true;
+        });
+      } else {
+        arr2 = arr1;
+      }
+
+      if (this.err_select[2].status) {
+        arr3 = arr2.filter(function(item, index, array) {
+          //元素值，元素的索引，原数组。
+          return item.force === true;
+        });
+      } else {
+        arr3 = arr2;
+      }
+      this.tableData3 = arr3;
     }
   }
 };
@@ -546,5 +655,20 @@ body {
 }
 .tableClass .el-table th {
   padding: 6px 0;
+}
+.container {
+  display: inline-block;
+  width: 226px;
+}
+.container_item {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+.container_item p {
+  margin-right: 16px;
+}
+.redColor {
+  color: red;
 }
 </style>
