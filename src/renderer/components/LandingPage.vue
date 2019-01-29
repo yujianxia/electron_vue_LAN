@@ -42,8 +42,7 @@
     content="配置之后生效">
     <span slot="reference">PLL<span class="tips"></span> ：</span>
   </el-popover>
-
-      PLL: <input type="text" style="width:60px;margin-right:10px;" v-model="poolConfig.pll">
+  <input type="text" style="width:60px;margin-right:10px;" v-model="poolConfig.pll">
       <el-button size="mini" type="info" @click="configPool('all')">配置全部</el-button>
       <el-button size="mini" type="info" @click="configPool()">配置选中</el-button>
     </div>
@@ -190,6 +189,13 @@ export default {
     that.IP_head = window.localStorage.getItem('ip_before')?window.localStorage.getItem('ip_before'):'';
     that.IP_start = window.localStorage.getItem('ip_start')?window.localStorage.getItem('ip_start'):null;
     that.IP_end = window.localStorage.getItem('ip_end')?window.localStorage.getItem('ip_end'):null;
+    // 设置矿池
+    that.poolConfig.poolurl0 = window.localStorage.getItem('pool1')?window.localStorage.getItem('pool1'):'';
+    that.poolConfig.poolurl1 = window.localStorage.getItem('pool2')?window.localStorage.getItem('pool2'):'';
+    that.poolConfig.poolurl2 = window.localStorage.getItem('pool3')?window.localStorage.getItem('pool3'):'';
+    that.poolConfig.poolusr0 = window.localStorage.getItem('account1')?window.localStorage.getItem('account1'):'';
+    that.poolConfig.poolusr1 = window.localStorage.getItem('account2')?window.localStorage.getItem('account2'):'';
+    that.poolConfig.poolusr2 = window.localStorage.getItem('account3')?window.localStorage.getItem('account3'):'';
   },
   methods: {
     // 浏览器打开外链
@@ -446,7 +452,15 @@ export default {
         });
         return;
       }
-      window.localStorage.setItem('pll',that.poolConfig.pull);
+      // 矿机
+      window.localStorage.setItem('pool1',that.poolConfig.poolurl0);
+      window.localStorage.setItem('pool2',that.poolConfig.poolurl1);
+      window.localStorage.setItem('pool3',that.poolConfig.poolurl2);
+      window.localStorage.setItem('account1',that.poolConfig.poolusr0);
+      window.localStorage.setItem('account2',that.poolConfig.poolusr1);
+      window.localStorage.setItem('account3',that.poolConfig.poolusr2);
+      // pll
+      window.localStorage.setItem('pll',that.poolConfig.pll);
       // 判断配置那些矿机
       if (val == "all") {
         that.configArr = that.tableData3;
