@@ -6,7 +6,7 @@
 
 <script>
   export default {
-    name: 'router-tool'
+    name: 'miner-manager'
   }
 </script>
 

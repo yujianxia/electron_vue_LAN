@@ -1,5 +1,5 @@
 {
-  "name": "router-tool",
+  "name": "miner-manager",
   "version": "0.0.1",
   "author": "yujianxia <yu443547917@qq.com>",
   "description": "An electron-vue project",
@@ -17,7 +17,7 @@
     "postinstall": ""
   },
   "build": {
-    "productName": "router-tool",
+    "productName": "miner-manager",
     "appId": "com.example.yourapp",
     "directories": {
       "output": "build"

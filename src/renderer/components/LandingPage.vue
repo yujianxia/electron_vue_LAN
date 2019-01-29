@@ -9,7 +9,7 @@
     ~ 结束IP：
     <el-input size="mini" style="width:80px;" maxlength='3' placeholder="结束IP" v-model="IP_end">
     </el-input>
-    <el-button size="mini" type="info" @click="searchFun" :loading="loading">查询</el-button>
+    <el-button size="mini" type="info" @click="searchFun" :loading="loading">扫描</el-button>
     <el-button size="mini" type="info" @click="resetFun('all','cx')">全部程序重启</el-button>
     <el-button size="mini" type="info" @click="resetFun('','cx')">选中程序重启</el-button>
     <!-- 重启设备 -->
@@ -35,12 +35,26 @@
         <p class="mb10">密码2 <input type="text" v-model="poolConfig.poolpasswd1"></p>
         <p>密码3 <input type="text" v-model="poolConfig.poolpasswd2"></p>
       </div>
+
+        <el-popover
+    placement="top-start"
+    trigger="hover"
+    content="配置之后生效">
+    <span slot="reference">PLL<span class="tips"></span> ：</span>
+  </el-popover>
+
       PLL: <input type="text" style="width:60px;margin-right:10px;" v-model="poolConfig.pll">
       <el-button size="mini" type="info" @click="configPool('all')">配置全部</el-button>
       <el-button size="mini" type="info" @click="configPool()">配置选中</el-button>
     </div>
 
-    异常配置： 温度： <input type="text" style="width:60px;margin-right:10px;outline: none;" v-model="temperature_err"> 5s平均值：<input type="text" style="width:60px;margin-right:40px;outline: none;" v-model="force_err"> 异常筛选：
+  <el-popover
+    placement="top-start"
+    trigger="hover"
+    content="设置之后下一次扫描生效">
+    <span slot="reference">异常配置<span class="tips"></span> ：</span>
+  </el-popover>
+  温度： <input type="text" style="width:60px;margin-right:10px;outline: none;" v-model="temperature_err"> 5s平均值：<input type="text" style="width:60px;margin-right:40px;outline: none;" v-model="force_err"> 异常筛选：
 
     <div class='container'>
       <div class='container_item'>
@@ -52,6 +66,8 @@
     </div>
 
     <el-button size="mini" type="info" @click="filtrate">筛选</el-button>
+
+    <el-button size="mini" type="info" @click="refresh" :loading="refresh_load">刷新</el-button>
 
     <!-- 表格数据 -->
     <el-table empty-text="" ref="multipleTable" class="tableClass" border :data="tableData3" tooltip-effect="dark" height='calc(100vh - 180px)' style="width: 100%;margin-top:6px;" @selection-change="handleSelectionChange">
@@ -89,21 +105,21 @@
       <!-- 平均值 -->
       <el-table-column prop="result[1].avg" label="平均值" width="100" align='center'>
       </el-table-column>
-      <el-table-column prop="result[1].poolurl0" label="矿池1" width="200" align='center'>
+      <el-table-column prop="result[1].poolurl0" label="矿池1" width="250" align='center'>
       </el-table-column>
-      <el-table-column prop="result[1].poolusr0" label="账户名1" width="150" align='center'>
+      <el-table-column prop="result[1].poolusr0" label="账户名1" width="160" align='center'>
       </el-table-column>
       <el-table-column prop="result[1].poolpasswd0" label="密码1" width="120" align='center'>
       </el-table-column>
-      <el-table-column prop="result[1].poolurl1" label="矿池2" width="200" align='center'>
+      <el-table-column prop="result[1].poolurl1" label="矿池2" width="250" align='center'>
       </el-table-column>
-      <el-table-column prop="result[1].poolusr1" label="账户名2" width="150" align='center'>
+      <el-table-column prop="result[1].poolusr1" label="账户名2" width="160" align='center'>
       </el-table-column>
       <el-table-column prop="result[1].poolpasswd1" label="密码2" width="120" align='center'>
       </el-table-column>
-      <el-table-column prop="result[1].poolurl2" label="矿池3" width="200" align='center'>
+      <el-table-column prop="result[1].poolurl2" label="矿池3" width="250" align='center'>
       </el-table-column>
-      <el-table-column prop="result[1].poolusr2" label="账户名3" width="150" align='center'>
+      <el-table-column prop="result[1].poolusr2" label="账户名3" width="160" align='center'>
       </el-table-column>
       <el-table-column prop="result[1].poolpasswd2" label="密码3" width="120" align='center'>
       </el-table-column>
@@ -126,6 +142,7 @@ export default {
       openArr: [],
       ind: 0,
       loading: false,
+      refresh_load:false,
       closeArr: [],
       joinArr: [],
       tableData3: [], //展示数据
@@ -143,7 +160,7 @@ export default {
         poolusr0: "",
         poolusr1: "",
         poolusr2: "",
-        pll: 550
+        pll: ''
       }, //矿机123配置
       temperature_err: "",
       force_err: "",
@@ -164,8 +181,15 @@ export default {
     };
   },
   mounted() {
-    this.temperature_err = window.localStorage.getItem('temperature_storage')?window.localStorage.getItem('temperature_storage'):'80';
-    this.force_err = window.localStorage.getItem('force_storage')?window.localStorage.getItem('force_storage'):'100';
+    let that = this;
+    // 设置温度 算力 pll
+    that.temperature_err = window.localStorage.getItem('temperature_storage')?window.localStorage.getItem('temperature_storage'):'80';
+    that.force_err = window.localStorage.getItem('force_storage')?window.localStorage.getItem('force_storage'):'100';
+    that.poolConfig.pll = window.localStorage.getItem('pll')?window.localStorage.getItem('pll'):'550';
+    // 设置ip
+    that.IP_head = window.localStorage.getItem('ip_before')?window.localStorage.getItem('ip_before'):'';
+    that.IP_start = window.localStorage.getItem('ip_start')?window.localStorage.getItem('ip_start'):null;
+    that.IP_end = window.localStorage.getItem('ip_end')?window.localStorage.getItem('ip_end'):null;
   },
   methods: {
     // 浏览器打开外链
@@ -177,16 +201,16 @@ export default {
       if (re.test(this.IP_head)) {
         if (RegExp.$1 < 256 && RegExp.$2 < 256 && RegExp.$3 < 256) {
           var re = /^[0-9]+.?[0-9]*$/; //判断字符串是否为数字 //判断正整数 /^[1-9]+[0-9]*]*$/
-          if (re.test(this.IP_start)) {
-            if (this.IP_start >= 0 && this.IP_start <= 255) {
+          if (re.test(parseInt(this.IP_start))) {
+            if (parseInt(this.IP_start) >= 0 && parseInt(this.IP_start) <= 255) {
             } else {
               return "lasterr";
             }
           } else {
             return "lasterr";
           }
-          if (re.test(this.IP_end)) {
-            if (this.IP_end >= 0 && this.IP_end <= 255) {
+          if (re.test(parseInt(this.IP_end))) {
+            if (parseInt(this.IP_end) >= 0 && parseInt(this.IP_end) <= 255) {
             } else {
               return "lasterr";
             }
@@ -270,7 +294,7 @@ export default {
     // 端口扫描函数（返回open状态的ip）
     scanPort(target, port) {
       let that = this;
-      var timeout = 1000;
+      var timeout = 500;
       var img = new Image();
       return new Promise((resolve, reject) => {
         img.onerror = function() {
@@ -317,21 +341,37 @@ export default {
         });
         return;
       }
-      if (this.IP_start > this.IP_end) {
+      if (parseInt(this.IP_start) > parseInt(this.IP_end)) {
         this.$alert("开始IP不能大于结束IP", "", {
           confirmButtonText: "确定",
           callback: action => {}
         });
         return;
       }
+      // 存储ip段
+      window.localStorage.setItem('ip_before',that.IP_head);
+      window.localStorage.setItem('ip_start',that.IP_start);
+      window.localStorage.setItem('ip_end',that.IP_end);
       // 发起所有请求
       that.loading = true;
-      this.getrerch();
+      that.getrerch();
+    },
+    // 刷新
+    refresh(){
+      let that = this;
+      that.refresh_load = true;
+      that.err_select[0].status = false;
+      that.err_select[1].status = false;
+      that.err_select[2].status = false;
+      that.tableData1 =[];
+      that.tableData3 =[];
+      that.getcync();
     },
     async getcync() {
       let that = this;
       if (this.openArr.length == 0) {
         that.loading = false;
+        that.refresh_load = false;
       }
       for (const iterator of this.openArr) {
         await this.getdata(iterator)
@@ -347,13 +387,12 @@ export default {
               }
             }
             // 判断温度
+            res.fever = false;
             for (const item2 of res.result[1].temperature) {
-              if (parseInt(item2) > parseInt(that.temperature_err)) {
-                // 温度异常
-                res.fever = true;
-              } else {
-                res.fever = false;
-              }
+                if (parseInt(item2) > parseInt(that.temperature_err)) {
+                  // 温度异常
+                  res.fever = true;
+                }
             }
             // 判断5s算力
             if (parseFloat(res.result[1]["5s"]) < parseFloat(that.force_err)) {
@@ -369,21 +408,22 @@ export default {
           .catch(err => {
             console.log(err);
           });
+          that.refresh_load = false;
       }
     },
     async getrerch() {
       let that = this;
-      var x = this.IP_start - 1;
-      for (let i = this.IP_start; i <= this.IP_end; i++) {
+      var x = parseInt(this.IP_start) - 1;
+      for (let i = parseInt(this.IP_start); i <= parseInt(this.IP_end); i++) {
         x++;
-        if (x == this.IP_end) {
+        if (x == parseInt(this.IP_end)) {
           // 判断是否扫描完成
           that.getcync();
         }
         await this.scanPort(this.IP_head + "." + i, this.default_port)
           .then(res => {
             that.openArr.push(res);
-            // console.log("当前异步完成", res);
+            // 一次扫描完成
           })
           .catch(err => {
             // console.log(err);
@@ -406,6 +446,7 @@ export default {
         });
         return;
       }
+      window.localStorage.setItem('pll',that.poolConfig.pull);
       // 判断配置那些矿机
       if (val == "all") {
         that.configArr = that.tableData3;
@@ -632,7 +673,7 @@ body {
   height: 100vh;
   padding: 10px;
   width: 100vw;
-  min-width: 1100px;
+  min-width: 1180px;
 }
 .setPool {
   width: 100%;
@@ -670,5 +711,21 @@ body {
 }
 .redColor {
   color: red;
+}
+.tips{
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  position: relative;
+  background-color: gray;
+  border-radius: 50%;
+}
+.tips::after{
+    content: "?";
+    color: #fff;
+    font-size: 12px;
+    position: absolute;
+    top: 1px;
+    left: 3px;
 }
 </style>

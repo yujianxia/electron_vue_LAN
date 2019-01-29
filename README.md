@@ -1,4 +1,4 @@
-# router-tool
+# miner-manager
 
 > An electron-vue project
 
